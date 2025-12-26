@@ -9,9 +9,7 @@ from .utils import validate_input_data
 
 app = FastAPI()
 
-# ---------------------------------------------------------
-# CORS
-# ---------------------------------------------------------
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,16 +18,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------
-# HEALTH CHECK
-# ---------------------------------------------------------
 @app.get("/")
 def home():
     return {"message": "ML backend running"}
 
-# ---------------------------------------------------------
-# DATETIME NORMALIZATION
-# ---------------------------------------------------------
+
 def normalize_datetime(series):
     """
     Ensures datetime strings become tz-naive timestamps.
@@ -40,9 +33,7 @@ def normalize_datetime(series):
     series = series.str.replace("+00:00", "", regex=False)
     return pd.to_datetime(series, errors="coerce")
 
-# ---------------------------------------------------------
-# ⭐ ML PREDICTION ENDPOINT (used by Node backend)
-# ---------------------------------------------------------
+
 @app.post("/predict")
 def predict_route(consent: ConsentInput):
     """
@@ -69,12 +60,10 @@ def predict_route(consent: ConsentInput):
         }
 
     except Exception as e:
-        print("🔥 ERROR in /predict:", e)
+        print(" ERROR in /predict:", e)
         raise HTTPException(status_code=500, detail=str(e))
 
-# ---------------------------------------------------------
-# OLD ROUTE (no longer used by Node, but kept for dashboard)
-# ---------------------------------------------------------
+
 @app.get("/consents")
 def get_consents():
     return []

@@ -274,6 +274,7 @@ const RiskInsightsPage = () => {
             </div>
           </div>
         </div>
+        
 
         {/* Risk by Permission Type */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">

@@ -7,18 +7,17 @@
   function init() {
     hookPermissionAPIs();
     watchPermissionState();
-    registerNotificationListener(); 
+    registerNotificationListener();
   }
 
- 
+  
 
   function watchPermissionState() {
-    if (!navigator.permissions || !navigator.permissions.query) return;
+    if (!navigator.permissions?.query) return;
 
     PERMISSIONS.forEach(async (perm) => {
       try {
         const status = await navigator.permissions.query({ name: perm });
-
         status.onchange = () => {
           sendEvent({
             permission: perm,
@@ -26,9 +25,11 @@
             status: status.state === "granted" ? "Granted" : "Revoked",
           });
         };
-      } catch (_) {}
+      } catch {}
     });
   }
+
+ 
 
   function hookPermissionAPIs() {
     if (navigator.geolocation) {
@@ -41,20 +42,10 @@
         });
         return originalGet.apply(this, args);
       };
-
-      const originalWatch = navigator.geolocation.watchPosition;
-      navigator.geolocation.watchPosition = function (...args) {
-        sendEvent({
-          permission: "geolocation",
-          purpose: "Website continuously accessed location",
-          status: "Granted",
-        });
-        return originalWatch.apply(this, args);
-      };
     }
 
     if (navigator.mediaDevices?.getUserMedia) {
-      const originalGetUserMedia = navigator.mediaDevices.getUserMedia;
+      const original = navigator.mediaDevices.getUserMedia;
       navigator.mediaDevices.getUserMedia = function (constraints) {
         if (constraints?.audio) {
           sendEvent({
@@ -70,48 +61,33 @@
             status: "Granted",
           });
         }
-        return originalGetUserMedia.apply(this, arguments);
+        return original.apply(this, arguments);
       };
     }
   }
 
- function sendEvent({ permission, purpose, status }) {
-  const key = `${location.hostname}-${permission}-${status}-${purpose}`;
-  if (lastEvent[key] && Date.now() - lastEvent[key] < 3000) return;
-  lastEvent[key] = Date.now();
-
-  const payload = {
-    type: "PERMISSION_DETECTED",
-    website: location.hostname,
-    url: location.href,
-    platform: detectPlatform(),
-    permission,
-    category: detectCategory(permission),
-    purpose,
-    status,
-    dataFlow: detectThirdParties(),
-    retention_months: 12,
-    grantedOn: new Date().toISOString(),
-    risk_category: permission === "geolocation" ? "High" : "Medium"
-  };
-
-  try {
-    chrome.runtime.sendMessage(payload);
-  } catch (_) {}
-
   
-  if (status === "Granted") {
-    showPermissionToast({
+  function sendEvent({ permission, purpose, status }) {
+    const key = `${location.hostname}-${permission}-${status}-${purpose}`;
+    if (lastEvent[key] && Date.now() - lastEvent[key] < 3000) return;
+    lastEvent[key] = Date.now();
 
-      website: payload.website,
-      permission: payload.permission,
-      risk_category: payload.risk_category
+    chrome.runtime.sendMessage({
+      type: "PERMISSION_DETECTED",
+      website: location.hostname,
+      url: location.href,
+      platform: detectPlatform(),
+      permission,
+      category: detectCategory(permission),
+      purpose,
+      status,
+      dataFlow: detectThirdParties(),
+      retention_months: 12,
+      grantedOn: new Date().toISOString(),
     });
   }
-}
 
-
- 
+  
 
   function registerNotificationListener() {
     chrome.runtime.onMessage.addListener((msg) => {
@@ -121,80 +97,82 @@
     });
   }
 
-  function showPermissionToast({ website, permission, risk_category }) {
-  // Remove existing
-  const existing = document.getElementById("consent-toast-root");
-  if (existing) existing.remove();
+  function showPermissionToast({ website, permission, risk_category, status }) {
+    const existing = document.getElementById("consent-toast-root");
+    if (existing) existing.remove();
 
-  // Root container
-  const root = document.createElement("div");
-  root.id = "consent-toast-root";
-  root.style.cssText = `
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    z-index: 2147483647;
-    pointer-events: none;
-  `;
+    const root = document.createElement("div");
+    root.id = "consent-toast-root";
+    root.style.cssText = `
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 2147483647;
+      pointer-events: auto;
+    `;
 
-  // Attach shadow DOM (🔥 key fix)
-  const shadow = root.attachShadow({ mode: "open" });
+    const shadow = root.attachShadow({ mode: "open" });
 
-  const color =
-    risk_category === "High"
-      ? "#dc2626"
-      : risk_category === "Medium"
-      ? "#d97706"
-      : "#16a34a";
+    const color =
+      risk_category === "High"
+        ? "#dc2626"
+        : risk_category === "Medium"
+        ? "#d97706"
+        : "#16a34a";
 
-  const toast = document.createElement("div");
-  toast.style.cssText = `
-    background: white;
-    border-radius: 12px;
-    padding: 14px 16px;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.15);
-    font-family: system-ui, -apple-system, sans-serif;
-    max-width: 360px;
-    border-left: 6px solid ${color};
-    animation: slideIn 0.25s ease-out;
-  `;
+    const toast = document.createElement("div");
+    toast.style.cssText = `
+      background: white;
+      border-radius: 12px;
+      padding: 14px 16px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+      font-family: system-ui, sans-serif;
+      max-width: 360px;
+      border-left: 6px solid ${color};
+    `;
 
-  toast.innerHTML = `
-    <div style="font-weight:600;color:#111827">
-      Permission Granted
-    </div>
-    <div style="margin-top:4px;font-size:14px;color:#374151">
-      ${permission} access allowed for <strong>${website}</strong>
-    </div>
-    <div style="margin-top:6px;font-size:13px;font-weight:600;color:${color}">
-      Risk Level: ${risk_category}
-    </div>
-  `;
+    toast.innerHTML = `
+      <div style="font-weight:600">Permission ${status}</div>
+      <div style="margin-top:4px;font-size:14px">
+        ${permission} — <strong>${website}</strong>
+      </div>
+      <div style="margin-top:6px;font-size:13px;color:${color}">
+        Risk Level: ${risk_category ?? "Analyzing"}
+      </div>
+      <button id="review-btn" style="
+        margin-top:10px;
+        font-size:13px;
+        background:#2563eb;
+        color:white;
+        border:none;
+        padding:6px 10px;
+        border-radius:6px;
+        cursor:pointer;
+      ">
+        Review browser permissions
+      </button>
+    `;
 
-  // Inject style safely inside shadow
-  const style = document.createElement("style");
-  style.textContent = `
-    @keyframes slideIn {
-      from { transform: translateY(12px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-  `;
+    shadow.appendChild(toast);
+    document.documentElement.appendChild(root);
 
-  shadow.appendChild(style);
-  shadow.appendChild(toast);
-  document.documentElement.appendChild(root);
+    shadow.getElementById("review-btn").onclick = () => {
+      const origin = location.origin;
+      chrome.runtime.sendMessage({
+        type: "OPEN_SITE_SETTINGS",
+        site: origin
+      });
+    };
 
-  setTimeout(() => root.remove(), 5000);
-}
+    setTimeout(() => root.remove(), 6000);
+  }
 
-  // -----------------------------
-  // EXISTING HELPERS (UNCHANGED)
-  // -----------------------------
+
 
   function detectPlatform() {
     const ua = navigator.userAgent;
     if (ua.includes("Android")) return "Android";
-    if (ua.includes("iPhone") || ua.includes("iPad")) return "iOS";
+    if (ua.includes("iPhone")) return "iOS";
     if (ua.includes("Edg")) return "Edge";
     if (ua.includes("Firefox")) return "Firefox";
     return "Chrome";

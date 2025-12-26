@@ -141,38 +141,74 @@ const ConsentCard = ({ consent, delay = 0, onStatusChange }) => {
 
   const EXTENSION_ID = "apckmeknhomnjfalbdociobhapalhoec";
   const handleManageConsent = async () => {
-    if (isUpdating) return;
-    setIsUpdating(true);
+  if (isUpdating) return;
+  setIsUpdating(true);
 
-    try {
-      const site = consent.website.startsWith("http")
-        ? consent.website
-        : `https://${getDisplayWebsite(consent.website)}`;
+  try {
+    const domain = getDisplayWebsite(consent.website);
+    const site = `https://${domain}`;
 
-      if (window.chrome?.runtime?.sendMessage) {
-        chrome.runtime.sendMessage(
-          EXTENSION_ID,
-          {
-            type: "OPEN_SITE_SETTINGS",
-            site,
-          },
-          () => {}
-        );
-      } else {
-        window.open(site, "_blank");
-      }
+    let settingsUrl = site; // fallback = homepage
 
-      await onStatusChange({
-        website: consent.website,
-        permission: consent.permission,
-        status: "Pending",
-      });
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsUpdating(false);
+    const isChromium =
+      typeof chrome !== "undefined" &&
+      chrome.runtime &&
+      chrome.runtime.sendMessage;
+
+    const isFirefox =
+      typeof InstallTrigger !== "undefined";
+
+    const isSafari =
+      /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+    //  Chromium browsers: Chrome, Edge, Brave, Opera
+    if (isChromium) {
+      settingsUrl = `chrome://settings/content/siteDetails?site=${encodeURIComponent(
+        site
+      )}`;
+
+      chrome.runtime.sendMessage(
+        EXTENSION_ID,
+        {
+          type: "OPEN_URL",
+          url: settingsUrl,
+        },
+        () => {}
+      );
     }
-  };
+   
+    else if (isFirefox) {
+      window.open(site, "_blank");
+      alert(
+        "Firefox does not allow opening site-specific settings directly.\n\n" +
+        "Go to: Settings → Privacy & Security → Permissions → Manage Permissions"
+      );
+    }
+    
+    else if (isSafari) {
+      window.open(site, "_blank");
+      alert(
+        "Safari does not support direct site settings links.\n\n" +
+        "Go to: Settings → Websites → Select the website"
+      );
+    }
+    
+    else {
+      window.open(site, "_blank");
+    }
+
+    await onStatusChange({
+      website: consent.website,
+      permission: consent.permission,
+      status: "Pending",
+    });
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setIsUpdating(false);
+  }
+};
+
 
   const risk = displayRisk();
   const riskColors = getRiskColor(consent.risk_category);

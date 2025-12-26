@@ -28,7 +28,6 @@ return String(s).replace(/[&<>"'`]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': 
 }
 
 
-// test consent sender
 testBtn.addEventListener('click', async () => {
 const test = {
 consentId: 'test-' + Date.now(),
@@ -45,14 +44,14 @@ consentString: 'test'
 };
 
 
-// send via background fetch by posting a message
+
 chrome.runtime.sendMessage({ type: 'FORCE_SEND_CONSENT', payload: test }, (resp) => {
 // no-op
 });
 });
 
 
-// listen for new consent events
+
 chrome.runtime.onMessage.addListener((msg) => {
 if (msg && msg.type === 'CONSENT_STORED') {
 loadRecent();
