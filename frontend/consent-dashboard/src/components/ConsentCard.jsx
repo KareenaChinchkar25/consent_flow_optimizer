@@ -118,15 +118,19 @@ const ConsentCard = ({ consent, delay = 0, onStatusChange }) => {
     });
   };
 
-  const displayRisk = () => {
-    const raw = Number(consent?.risk_score ?? 0);
-    const scaled = raw <= 1 ? raw * 10 : raw;
-    return {
-      score: scaled.toFixed(1),
-      pct: `${Math.round((scaled / 10) * 100)}%`,
-      numeric: scaled
-    };
+ const displayRisk = () => {
+  const raw = Number(consent?.risk_score ?? 0);
+
+  // normalize to 0–1
+  const normalized = raw <= 1 ? raw : raw / 10;
+
+  return {
+    percentage: `${Math.round(normalized * 100)}%`,
+    numeric: normalized * 100, // useful for progress bars
+    level: consent?.risk_level
   };
+};
+
   console.log(consent);
   const getDisplayWebsite = (value) => {
     if (!value) return "Unknown site";
@@ -139,8 +143,11 @@ const ConsentCard = ({ consent, delay = 0, onStatusChange }) => {
     }
   };
 
-  const EXTENSION_ID = "apckmeknhomnjfalbdociobhapalhoec";
-  const handleManageConsent = async () => {
+  
+  const EXTENSION_ID = "ahgccmghbbnfjebfbgkedlfmeijdaigp";
+
+
+const handleManageConsent = async () => {
   if (isUpdating) return;
   setIsUpdating(true);
 
@@ -148,53 +155,33 @@ const ConsentCard = ({ consent, delay = 0, onStatusChange }) => {
     const domain = getDisplayWebsite(consent.website);
     const site = `https://${domain}`;
 
-    let settingsUrl = site; // fallback = homepage
-
-    const isChromium =
-      typeof chrome !== "undefined" &&
-      chrome.runtime &&
-      chrome.runtime.sendMessage;
-
-    const isFirefox =
-      typeof InstallTrigger !== "undefined";
-
-    const isSafari =
-      /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-
-    //  Chromium browsers: Chrome, Edge, Brave, Opera
-    if (isChromium) {
-      settingsUrl = `chrome://settings/content/siteDetails?site=${encodeURIComponent(
-        site
-      )}`;
-
-      chrome.runtime.sendMessage(
+    // ✅ Explicit external messaging attempt
+    if (window.chrome?.runtime?.sendMessage) {
+      window.chrome.runtime.sendMessage(
         EXTENSION_ID,
         {
-          type: "OPEN_URL",
-          url: settingsUrl,
+          type: "OPEN_SITE_SETTINGS",
+          site,
         },
-        () => {}
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.error(
+              "External messaging blocked:",
+              chrome.runtime.lastError.message
+            );
+            window.open(site, "_blank");
+          } else if (!response?.opened) {
+            window.open(site, "_blank");
+          }
+        }
       );
-    }
-   
-    else if (isFirefox) {
+    } else {
+      // Non-Chromium browsers
       window.open(site, "_blank");
       alert(
-        "Firefox does not allow opening site-specific settings directly.\n\n" +
-        "Go to: Settings → Privacy & Security → Permissions → Manage Permissions"
+        "To change permissions:\n" +
+        "Open browser settings → Site settings → Permissions"
       );
-    }
-    
-    else if (isSafari) {
-      window.open(site, "_blank");
-      alert(
-        "Safari does not support direct site settings links.\n\n" +
-        "Go to: Settings → Websites → Select the website"
-      );
-    }
-    
-    else {
-      window.open(site, "_blank");
     }
 
     await onStatusChange({
@@ -208,6 +195,7 @@ const ConsentCard = ({ consent, delay = 0, onStatusChange }) => {
     setIsUpdating(false);
   }
 };
+
 
 
   const risk = displayRisk();
@@ -302,20 +290,17 @@ const ConsentCard = ({ consent, delay = 0, onStatusChange }) => {
                   <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg">
                     <Zap className="w-4 h-4 text-white" />
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Risk Score</p>
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                        {risk.score}/10
-                      </p>
-                      <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full bg-gradient-to-r ${riskColors.gradient} transition-all duration-1000`}
-                          style={{ width: risk.pct }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
+                 <p className="font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+  {risk.percentage}
+</p>
+
+<div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+  <div
+    className={`h-full bg-gradient-to-r ${riskColors.gradient} transition-all duration-1000`}
+    style={{ width: `${risk.numeric}%` }}
+  ></div>
+</div>
+
                 </div>
               </div>
             </div>
