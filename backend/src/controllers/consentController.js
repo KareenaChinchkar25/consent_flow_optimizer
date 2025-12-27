@@ -1,7 +1,10 @@
 import axios from "axios";
 import { Consent } from "../models/consent.js";
 
-const ML_BASE_URL = process.env.ML_API_URL; // e.g. https://consent-flow-optimizer-1.onrender.com
+const ML_BASE_URL = process.env.ML_API_URL; 
+// example: https://consent-flow-optimizer-1.onrender.com
+
+/* ================= ADD CONSENT ================= */
 
 export const addConsent = async (req, res) => {
   try {
@@ -23,25 +26,28 @@ export const addConsent = async (req, res) => {
 
     let riskUpdate = {};
 
-    /* ================= ML NORMALIZATION (KEY FIX) ================= */
+    /* ================= ML NORMALIZATION ================= */
+
+    const mlPayload = {
+      website: data.website,
+      platform: data.platform || "Chrome",
+      permission: data.permission.toLowerCase(),
+      category: data.category || "Device Access",
+      purpose:
+        data.purpose === "Permission state changed"
+          ? "Device access"
+          : data.purpose,
+      retention_months: Number(data.retention_months || 12),
+      dataFlow: Array.isArray(data.dataFlow) ? data.dataFlow : [],
+      grantedOn: data.grantedOn
+        ? data.grantedOn.toISOString()
+        : new Date().toISOString(),
+    };
+
+    console.log("Calling ML:", `${ML_BASE_URL}/predict`);
+    console.log("ML payload:", mlPayload);
 
     try {
-      const mlPayload = {
-        website: data.website,
-        platform: data.platform || "Chrome",
-        permission: data.permission.toLowerCase(),
-        category: data.category || "Device Access",
-        purpose:
-          data.purpose === "Permission state changed"
-            ? "Device access"
-            : data.purpose,
-        retention_months: Number(data.retention_months || 12),
-        dataFlow: Array.isArray(data.dataFlow) ? data.dataFlow : [],
-        grantedOn: data.grantedOn
-          ? data.grantedOn.toISOString()
-          : new Date().toISOString(),
-      };
-
       const mlRes = await axios.post(
         `${ML_BASE_URL}/predict`,
         mlPayload,
@@ -53,12 +59,13 @@ export const addConsent = async (req, res) => {
         risk_category: mlRes.data.risk_category,
       };
     } catch (err) {
-      console.error(
-        "ML ERROR:",
-        err.response?.data || err.message
-      );
+      console.error("ML ERROR:", {
+        message: err.message,
+        status: err.response?.status,
+        data: err.response?.data,
+      });
 
-    console.log("Calling ML:", `${ML_BASE_URL}/predict`);
+      // fallback to existing risk if present
       if (existing?.risk_score !== undefined) {
         riskUpdate = {
           risk_score: existing.risk_score,
@@ -81,6 +88,48 @@ export const addConsent = async (req, res) => {
       { upsert: true, new: true }
     );
 
+    res.json(consent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/* ================= GET ALL CONSENTS ================= */
+
+export const getAllConsents = async (req, res) => {
+  try {
+    const consents = await Consent.find().sort({ createdAt: -1 });
+    res.json(consents);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/* ================= UPDATE STATUS ================= */
+
+export const updateConsentStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!["Pending", "Denied"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status update" });
+    }
+
+    const consent = await Consent.findById(id);
+    if (!consent) {
+      return res.status(404).json({ error: "Consent not found" });
+    }
+
+    consent.status = status;
+    consent.audit = consent.audit || [];
+    consent.audit.push({
+      action: `STATUS_SET_${status.toUpperCase()}`,
+      source: "dashboard",
+      timestamp: new Date(),
+    });
+
+    await consent.save();
     res.json(consent);
   } catch (err) {
     res.status(500).json({ error: err.message });
