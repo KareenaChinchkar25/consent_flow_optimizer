@@ -58,7 +58,7 @@ export const addConsent = async (req, res) => {
         err.response?.data || err.message
       );
 
-    
+    console.log("Calling ML:", `${ML_BASE_URL}/predict`);
       if (existing?.risk_score !== undefined) {
         riskUpdate = {
           risk_score: existing.risk_score,
