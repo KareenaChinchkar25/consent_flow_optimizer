@@ -51,7 +51,7 @@ export const addConsent = async (req, res) => {
       const mlRes = await axios.post(
         `${ML_BASE_URL}/predict`,
         mlPayload,
-        { timeout: 5000 }
+        { timeout: 30000 }
       );
 
       riskUpdate = {
