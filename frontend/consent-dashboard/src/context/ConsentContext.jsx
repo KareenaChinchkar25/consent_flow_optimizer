@@ -82,9 +82,7 @@ function getFilteredConsents(state) {
 export function ConsentProvider({ children }) {
   const [state, dispatch] = useReducer(consentReducer, initialState);
 
-  // -----------------------------------------
-  // FETCH FROM BACKEND
-  // -----------------------------------------
+
   const fetchConsents = async () => {
     try {
       const data = await consentService.getConsents();
