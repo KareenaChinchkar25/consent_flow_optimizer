@@ -111,6 +111,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 
 chrome.runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
+  console.log("External message received:", msg);
   if (msg.type === "OPEN_SITE_SETTINGS" && msg.site) {
     try {
       // ✅ FORCE origin parsing (this is the key)
@@ -130,4 +131,5 @@ chrome.runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
     return true;
   }
 });
+
 

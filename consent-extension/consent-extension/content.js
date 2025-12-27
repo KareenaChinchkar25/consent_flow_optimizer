@@ -98,74 +98,57 @@
   }
 
   function showPermissionToast({ website, permission, risk_category, status }) {
-    const existing = document.getElementById("consent-toast-root");
-    if (existing) existing.remove();
+  const existing = document.getElementById("consent-toast-root");
+  if (existing) existing.remove();
 
-    const root = document.createElement("div");
-    root.id = "consent-toast-root";
-    root.style.cssText = `
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      z-index: 2147483647;
-      pointer-events: auto;
-    `;
+  const root = document.createElement("div");
+  root.id = "consent-toast-root";
+  root.style.cssText = `
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 2147483647;
+    pointer-events: auto;
+  `;
 
-    const shadow = root.attachShadow({ mode: "open" });
+  const shadow = root.attachShadow({ mode: "open" });
 
-    const color =
-      risk_category === "High"
-        ? "#dc2626"
-        : risk_category === "Medium"
-        ? "#d97706"
-        : "#16a34a";
+  const color =
+    risk_category === "High"
+      ? "#dc2626"
+      : risk_category === "Medium"
+      ? "#d97706"
+      : "#16a34a";
 
-    const toast = document.createElement("div");
-    toast.style.cssText = `
-      background: white;
-      border-radius: 12px;
-      padding: 14px 16px;
-      box-shadow: 0 12px 32px rgba(0,0,0,0.15);
-      font-family: system-ui, sans-serif;
-      max-width: 360px;
-      border-left: 6px solid ${color};
-    `;
+  const toast = document.createElement("div");
+  toast.style.cssText = `
+    background: white;
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+    font-family: system-ui, sans-serif;
+    max-width: 360px;
+    border-left: 6px solid ${color};
+  `;
 
-    toast.innerHTML = `
-      <div style="font-weight:600">Permission ${status}</div>
-      <div style="margin-top:4px;font-size:14px">
-        ${permission} — <strong>${website}</strong>
-      </div>
-      <div style="margin-top:6px;font-size:13px;color:${color}">
-        Risk Level: ${risk_category ?? "Analyzing"}
-      </div>
-      <button id="review-btn" style="
-        margin-top:10px;
-        font-size:13px;
-        background:#2563eb;
-        color:white;
-        border:none;
-        padding:6px 10px;
-        border-radius:6px;
-        cursor:pointer;
-      ">
-        Review browser permissions
-      </button>
-    `;
+  // ❌ BUTTON REMOVED
+  toast.innerHTML = `
+    <div style="font-weight:600">Permission ${status}</div>
+    <div style="margin-top:4px;font-size:14px">
+      ${permission} — <strong>${website}</strong>
+    </div>
+    <div style="margin-top:6px;font-size:13px;color:${color}">
+      Risk Level: ${risk_category ?? "Analyzing"}
+    </div>
+  `;
 
-    shadow.appendChild(toast);
-    document.documentElement.appendChild(root);
+  shadow.appendChild(toast);
+  document.documentElement.appendChild(root);
 
-    shadow.getElementById("review-btn").onclick = () => {
-      const origin = location.origin;
-      chrome.runtime.sendMessage({
-        type: "OPEN_SITE_SETTINGS",
-        site: origin
-      });
-    };
+  // Auto-remove toast after 6 seconds
+  setTimeout(() => root.remove(), 6000);
+}
 
-    setTimeout(() => root.remove(), 6000);
-  }
 
 
 

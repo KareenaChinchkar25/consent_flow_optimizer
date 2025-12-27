@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 
 BASE = os.path.dirname(__file__)
-DATA_FILE = os.path.join(BASE, "Newdataset.xlsx")
+DATA_FILE = os.path.join(BASE, "new.xlsx")
 MODEL_DIR = os.path.join(BASE, "models")
 
 os.makedirs(MODEL_DIR, exist_ok=True)
