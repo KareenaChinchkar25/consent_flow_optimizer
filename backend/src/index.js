@@ -9,7 +9,17 @@ dotenv.config();
 const app = express();
 
 // middlewares
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://your-frontend.vercel.app"
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
+  })
+);
+
 app.use(express.json());
 
 // Connect to MongoDB
@@ -20,12 +30,12 @@ app.get("/", (req, res) => {
   res.json({ message: "Node.js backend running with MongoDB" });
 });
 
-// load routes (will create in next phases)
-
+// routes
 app.use("/consents", consentRoutes);
 
-const PORT = process.env.PORT || 4000;
+// IMPORTANT: Render-compatible port
+const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, () =>
-  console.log(` Server running on http://localhost:${PORT}`)
+  console.log(`Server running on port ${PORT}`)
 );
