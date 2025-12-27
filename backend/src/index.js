@@ -8,17 +8,8 @@ dotenv.config();
 
 const app = express();
 
-// middlewares
-app.use(
-  cors({
-    origin: [
-      "https://consentflowoptimizer.vercel.app",
-      "http://localhost:3000",
-    ],
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true
-  })
-);
+// ✅ allow all origins (safe for now)
+app.use(cors());
 
 app.use(express.json());
 
@@ -33,7 +24,7 @@ app.get("/", (req, res) => {
 // routes
 app.use("/consents", consentRoutes);
 
-// IMPORTANT: Render-compatible port
+// Render-compatible port
 const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, () =>
