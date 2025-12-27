@@ -55,3 +55,41 @@ export const addConsent = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const getAllConsents = async (req, res) => {
+  try {
+    const consents = await Consent.find().sort({ createdAt: -1 });
+    res.json(consents);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const updateConsentStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!["Pending", "Denied"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status update" });
+    }
+
+    const consent = await Consent.findById(id);
+    if (!consent) {
+      return res.status(404).json({ error: "Consent not found" });
+    }
+
+    consent.status = status;
+    consent.audit = consent.audit || [];
+    consent.audit.push({
+      action: `STATUS_SET_${status.toUpperCase()}`,
+      source: "dashboard",
+      timestamp: new Date(),
+    });
+
+    await consent.save();
+    res.json(consent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
